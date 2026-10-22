@@ -152,6 +152,7 @@ public final class MainMidlet extends MIDlet {
             }
             drawPlayer(g, playerX - cameraX, playerY - cameraY);
             drawHud(g, width, height);
+            drawMinimap(g, width);
             if (victory) {
                 drawVictory(g, width, height);
                 return;
@@ -371,7 +372,8 @@ public final class MainMidlet extends MIDlet {
         }
 
         private void drawHud(Graphics g, int width, int height) {
-            int panelWidth = Math.min(width - 12, 184);
+            int panelWidth = Math.min(width < 240 ? width - 12 : width - 78,
+                                      184);
             g.setColor(20, 27, 25);
             g.fillRect(5, 5, panelWidth, 66);
             g.setColor(211, 184, 120);
@@ -406,6 +408,82 @@ public final class MainMidlet extends MIDlet {
                 g.drawString(message, width / 2, 72,
                              Graphics.TOP | Graphics.HCENTER);
             }
+        }
+
+        private void drawMinimap(Graphics g, int width) {
+            if (width < 240) {
+                return;
+            }
+            int size = Math.min(60, width / 4);
+            int x = width - size - 6;
+            int y = 6;
+            int inner = size - 8;
+            int mapX = x + 4;
+            int mapY = y + 4;
+
+            g.setColor(20, 27, 25);
+            g.fillRect(x, y, size, size);
+            g.setColor(211, 184, 120);
+            g.drawRect(x, y, size, size);
+            g.setColor(58, 103, 54);
+            g.fillRect(mapX, mapY, inner, inner);
+
+            g.setColor(137, 111, 72);
+            int previousX = mapX;
+            int previousY = mapY + (25 * inner / (WORLD_HEIGHT / TILE));
+            int segment;
+            for (segment = 1; segment <= 5; segment++) {
+                int worldX = segment * WORLD_WIDTH / 5;
+                int tileX = worldX / TILE;
+                int tileY = 25 + tileX / 9;
+                int nextX = mapX + worldX * inner / WORLD_WIDTH;
+                int nextY = mapY + tileY * inner / (WORLD_HEIGHT / TILE);
+                g.drawLine(previousX, previousY, nextX, nextY);
+                previousX = nextX;
+                previousY = nextY;
+            }
+            int roadX = mapX + 45 * TILE * inner / WORLD_WIDTH;
+            g.drawLine(roadX, mapY + 16 * inner / (WORLD_HEIGHT / TILE),
+                       roadX, mapY + 48 * inner / (WORLD_HEIGHT / TILE));
+
+            g.setColor(44, 127, 166);
+            drawMapLake(g, mapX, mapY, inner, 20, 18, 5, 4);
+            drawMapLake(g, mapX, mapY, inner, 57, 42, 6, 5);
+            drawMapLake(g, mapX, mapY, inner, 16, 43, 4, 3);
+
+            g.setColor(244, 207, 104);
+            int portalX = mapX + PORTAL_X * inner / WORLD_WIDTH;
+            int portalY = mapY + PORTAL_Y * inner / WORLD_HEIGHT;
+            g.fillRect(portalX - 2, portalY - 2, 5, 5);
+
+            g.setColor(211, 72, 53);
+            int index;
+            for (index = 0; index < monsters.length; index++) {
+                Monster monster = monsters[index];
+                if (monster.alive) {
+                    int monsterX = mapX + monster.x * inner / WORLD_WIDTH;
+                    int monsterY = mapY + monster.y * inner / WORLD_HEIGHT;
+                    g.fillRect(monsterX, monsterY, 2, 2);
+                }
+            }
+
+            int playerMapX = mapX + playerX * inner / WORLD_WIDTH;
+            int playerMapY = mapY + playerY * inner / WORLD_HEIGHT;
+            g.setColor(239, 246, 220);
+            g.fillRect(playerMapX - 2, playerMapY - 2, 5, 5);
+            g.setColor(45, 49, 39);
+            g.fillRect(playerMapX - 1, playerMapY - 1, 3, 3);
+        }
+
+        private void drawMapLake(Graphics g, int mapX, int mapY, int size,
+                                 int centerTileX, int centerTileY,
+                                 int radiusTileX, int radiusTileY) {
+            int centerX = mapX + centerTileX * TILE * size / WORLD_WIDTH;
+            int centerY = mapY + centerTileY * TILE * size / WORLD_HEIGHT;
+            int radiusX = Math.max(2, radiusTileX * TILE * size / WORLD_WIDTH);
+            int radiusY = Math.max(2, radiusTileY * TILE * size / WORLD_HEIGHT);
+            g.fillArc(centerX - radiusX, centerY - radiusY,
+                      radiusX * 2, radiusY * 2, 0, 360);
         }
 
         private void drawControls(Graphics g, int width, int height) {
