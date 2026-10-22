@@ -152,6 +152,10 @@ public final class MainMidlet extends MIDlet {
             }
             drawPlayer(g, playerX - cameraX, playerY - cameraY);
             drawHud(g, width, height);
+            if (victory) {
+                drawVictory(g, width, height);
+                return;
+            }
             drawControls(g, width, height);
         }
 
@@ -188,6 +192,38 @@ public final class MainMidlet extends MIDlet {
             g.setColor(255, 250, 220);
             g.drawString("Bam bat ki nut nao de bat dau", width / 2,
                          height - 64, Graphics.TOP | Graphics.HCENTER);
+        }
+
+        private void drawVictory(Graphics g, int width, int height) {
+            int panelWidth = Math.min(width - 20, 228);
+            int panelHeight = 112;
+            int x = (width - panelWidth) / 2;
+            int y = (height - panelHeight) / 2;
+            g.setColor(20, 27, 25);
+            g.fillRect(x, y, panelWidth, panelHeight);
+            g.setColor(236, 198, 112);
+            g.drawRect(x, y, panelWidth, panelHeight);
+            g.setFont(Font.getFont(Font.FACE_SYSTEM, Font.STYLE_BOLD,
+                                   Font.SIZE_LARGE));
+            g.drawString("DA HOAN THANH!", width / 2, y + 14,
+                         Graphics.TOP | Graphics.HCENTER);
+            g.setFont(Font.getFont(Font.FACE_SYSTEM, Font.STYLE_PLAIN,
+                                   Font.SIZE_SMALL));
+            g.setColor(224, 218, 191);
+            g.drawString("Ban da dep yen vung rung", width / 2, y + 48,
+                         Graphics.TOP | Graphics.HCENTER);
+            g.drawString("Cham man hinh de choi lai", width / 2, y + 76,
+                         Graphics.TOP | Graphics.HCENTER);
+        }
+
+        private void startNextRun() {
+            victory = false;
+            totalKills = 0;
+            playerX = 1200;
+            playerY = 900;
+            hp = MAX_HP;
+            showMessage("Nhiem vu moi bat dau");
+            save();
         }
 
         private void drawWorld(Graphics g, int cameraX, int cameraY,
@@ -519,6 +555,10 @@ public final class MainMidlet extends MIDlet {
         }
 
         protected void keyPressed(int keyCode) {
+            if (victory) {
+                startNextRun();
+                return;
+            }
             if (!started) {
                 started = true;
                 showMessage("Bat dau chien dau");
@@ -552,6 +592,10 @@ public final class MainMidlet extends MIDlet {
         }
 
         protected void pointerPressed(int x, int y) {
+            if (victory) {
+                startNextRun();
+                return;
+            }
             if (!started) {
                 started = true;
                 showMessage("Bat dau chien dau");
@@ -713,6 +757,12 @@ public final class MainMidlet extends MIDlet {
                     experience = Math.max(0, input.readInt());
                     hp = clamp(input.readInt(), 1, MAX_HP);
                     totalKills = Math.max(0, input.readInt());
+                    if (input.available() > 0) {
+                        victory = input.readBoolean();
+                    }
+                    if (victory) {
+                        started = true;
+                    }
                     while (experience >= level * 40) {
                         experience -= level * 40;
                         level++;
@@ -740,6 +790,7 @@ public final class MainMidlet extends MIDlet {
                 output.writeInt(experience);
                 output.writeInt(hp);
                 output.writeInt(totalKills);
+                output.writeBoolean(victory);
                 output.flush();
 
                 store = RecordStore.openRecordStore(STORE_NAME, true);

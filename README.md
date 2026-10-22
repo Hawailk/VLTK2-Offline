@@ -23,6 +23,7 @@ Build tạo `dist/VLTK2Offline.jar` cùng `dist/VLTK2Offline.jad`. JAR game ch�
 - D-pad cảm ứng hoặc phím điều hướng để di chuyển; nút kiếm hoặc phím chọn để đánh quái ở gần.
 - Quái đuổi theo và gây sát thương. Hạ quái nhận EXP; đủ EXP sẽ lên cấp và hồi sinh lực.
 - Nhiệm vụ yêu cầu hạ 8 quái rồi đi tới cổng ở góc đông nam; sprite có nhịp bước, hiệu ứng chém và chớp khi trúng đòn.
+- Hoàn thành nhiệm vụ hiện màn chiến thắng; chạm màn hình hoặc nhấn phím để bắt đầu lượt mới. Trạng thái chiến thắng được lưu offline.
 - Tiến trình cấp, EXP, sinh lực và vị trí được lưu cục bộ bằng MIDP RecordStore khi hạ quái, định kỳ và khi ứng dụng tạm dừng/đóng.
 - Khi bị hạ, nhân vật hồi sinh tại điểm xuất phát. Bản đồ cuộn theo nhân vật trong một vùng thế giới rộng.
 
