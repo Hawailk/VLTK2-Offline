@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="VLTK2Offline" default="jar" basedir=".">
+    <property name="src.dir" value="src" />
+    <property name="build.dir" value="build" />
+    <property name="classes.dir" value="${build.dir}/classes" />
+    <property name="deps.dir" value="${build.dir}/deps" />
+    <property name="dist.dir" value="dist" />
+    <property name="game.version" value="1.1.1" />
+    <property name="midp.jar" value="${deps.dir}/microemulator-2.0.4.jar" />
+    <property name="ecj.jar" value="${deps.dir}/ecj-3.37.0.jar" />
+    <property name="game.jar" value="${dist.dir}/VLTK2Offline.jar" />
+
+    <target name="dependencies">
+        <mkdir dir="${deps.dir}" />
+        <get src="https://repo.maven.apache.org/maven2/org/microemu/microemulator/2.0.4/microemulator-2.0.4.jar"
+             dest="${midp.jar}" skipexisting="true" />
+           <get src="https://repo.maven.apache.org/maven2/org/eclipse/jdt/ecj/3.37.0/ecj-3.37.0.jar"
+               dest="${ecj.jar}" skipexisting="true" />
+    </target>
+
+    <target name="compile" depends="dependencies">
+        <mkdir dir="${classes.dir}" />
+        <java jar="${ecj.jar}" fork="true" failonerror="true">
+            <arg value="-1.3" />
+            <arg value="-target" />
+            <arg value="cldc1.1" />
+            <arg value="-encoding" />
+            <arg value="UTF-8" />
+            <arg value="-classpath" />
+            <arg path="${midp.jar}" />
+            <arg value="-d" />
+            <arg path="${classes.dir}" />
+            <arg path="${src.dir}/com/vltk2/offline/MainMidlet.java" />
+        </java>
+    </target>
+
+    <target name="jar" depends="compile">
+        <mkdir dir="${dist.dir}" />
+        <jar destfile="${game.jar}" basedir="${classes.dir}">
+            <manifest>
+                <attribute name="MIDlet-Name" value="VLTK2 Offline" />
+                <attribute name="MIDlet-Version" value="${game.version}" />
+                <attribute name="MIDlet-Vendor" value="Offline RPG" />
+                <attribute name="MIDlet-1" value="VLTK2 Offline,,com.vltk2.offline.MainMidlet" />
+                <attribute name="MicroEdition-Profile" value="MIDP-2.0" />
+                <attribute name="MicroEdition-Configuration" value="CLDC-1.1" />
+            </manifest>
+        </jar>
+        <length file="${game.jar}" property="game.jar.size" />
+        <echo file="${dist.dir}/VLTK2Offline.jad">MIDlet-Name: VLTK2 Offline
+MIDlet-Version: ${game.version}
+MIDlet-Vendor: Offline RPG
+MIDlet-1: VLTK2 Offline,,com.vltk2.offline.MainMidlet
+MIDlet-Jar-URL: VLTK2Offline.jar
+MIDlet-Jar-Size: ${game.jar.size}
+MicroEdition-Profile: MIDP-2.0
+MicroEdition-Configuration: CLDC-1.1
+</echo>
+    </target>
+
+    <target name="clean">
+        <delete dir="${build.dir}" />
+        <delete dir="${dist.dir}" />
+    </target>
+</project>
