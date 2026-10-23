@@ -69,7 +69,8 @@ public final class MainMidlet extends MIDlet {
             new Monster(1280, 870), new Monster(1380, 940),
             new Monster(1100, 1020), new Monster(1450, 1110),
             new Monster(900, 850), new Monster(1580, 800),
-            new Monster(1700, 1050), new Monster(1050, 700)
+            new Monster(1700, 1050), new Monster(1050, 700),
+            new Monster(2070, 1500, 220, true)
         };
 
         private int playerX = 1200;
@@ -85,6 +86,7 @@ public final class MainMidlet extends MIDlet {
         private boolean skillRequested;
         private boolean started;
         private boolean victory;
+        private boolean bossDefeated;
         private volatile boolean running;
         private volatile Thread loop;
         private long lastAttack;
@@ -149,7 +151,7 @@ public final class MainMidlet extends MIDlet {
 
             for (int i = 0; i < monsters.length; i++) {
                 Monster monster = monsters[i];
-                if (monster.alive) {
+                if (monster.alive && (!monster.isBoss || bossUnlocked())) {
                     drawMonster(g, monster.x - cameraX, monster.y - cameraY,
                                 monster.hp, monster.maxHp, monster.isDamaged());
                 }
@@ -224,10 +226,24 @@ public final class MainMidlet extends MIDlet {
 
         private void startNextRun() {
             victory = false;
+            bossDefeated = false;
             totalKills = 0;
             playerX = 1200;
             playerY = 900;
             hp = MAX_HP;
+            skillReadyAt = 0;
+            skillStartedAt = 0;
+            attackHeld = false;
+            for (int i = 0; i < monsters.length; i++) {
+                Monster monster = monsters[i];
+                monster.x = monster.originX;
+                monster.y = monster.originY;
+                monster.hp = monster.maxHp;
+                monster.alive = !monster.isBoss;
+                monster.nextHit = 0;
+                monster.lastHitAt = 0;
+                monster.respawnAt = 0;
+            }
             showMessage("Nhiem vu moi bat dau");
             save();
         }
@@ -365,15 +381,24 @@ public final class MainMidlet extends MIDlet {
 
         private void drawMonster(Graphics g, int x, int y, int monsterHp,
                      int monsterMaxHp, boolean damaged) {
+            boolean boss = monsterMaxHp > 36;
+            int spriteSize = boss ? 3 : 2;
             g.setColor(28, 36, 31);
-            g.fillArc(x - 12, y + 8, 24, 6, 0, 360);
-            drawPixelSprite(g, x, y - 13, MONSTER_SPRITE, 2, 1,
-                    (x + y) & 1, damaged);
+            g.fillArc(x - (boss ? 19 : 12), y + 8,
+                  boss ? 38 : 24, boss ? 9 : 6, 0, 360);
+            if (boss) {
+            g.setColor(128, 47, 104);
+            g.drawArc(x - 25, y - 29, 50, 50, 0, 360);
+            }
+            drawPixelSprite(g, x, y + 8 - MONSTER_SPRITE.length * spriteSize,
+                MONSTER_SPRITE, spriteSize, boss ? 3 : 1,
+                (x + y) & 1, damaged);
+            int barWidth = boss ? 34 : 18;
             g.setColor(28, 36, 28);
-            g.fillRect(x - 9, y - 17, 18, 3);
-            g.setColor(183, 53, 45);
-            g.fillRect(x - 8, y - 16,
-                       Math.max(1, 16 * monsterHp / monsterMaxHp), 1);
+            g.fillRect(x - barWidth / 2, y - (boss ? 34 : 17), barWidth, 4);
+            g.setColor(boss ? 205 : 183, boss ? 83 : 53, boss ? 166 : 45);
+            g.fillRect(x - barWidth / 2 + 1, y - (boss ? 33 : 16),
+                   Math.max(1, (barWidth - 2) * monsterHp / monsterMaxHp), 2);
         }
 
         private void drawHud(Graphics g, int width, int height) {
@@ -465,10 +490,16 @@ public final class MainMidlet extends MIDlet {
             int index;
             for (index = 0; index < monsters.length; index++) {
                 Monster monster = monsters[index];
-                if (monster.alive) {
+                if (monster.alive && (!monster.isBoss || bossUnlocked())) {
                     int monsterX = mapX + monster.x * inner / WORLD_WIDTH;
                     int monsterY = mapY + monster.y * inner / WORLD_HEIGHT;
-                    g.fillRect(monsterX, monsterY, 2, 2);
+                    if (monster.isBoss) {
+                        g.setColor(205, 83, 166);
+                        g.fillRect(monsterX - 1, monsterY - 1, 4, 4);
+                        g.setColor(211, 72, 53);
+                    } else {
+                        g.fillRect(monsterX, monsterY, 2, 2);
+                    }
                 }
             }
 
@@ -581,7 +612,13 @@ public final class MainMidlet extends MIDlet {
 
             for (int i = 0; i < monsters.length; i++) {
                 Monster monster = monsters[i];
+                if (monster.isBoss && !bossUnlocked()) {
+                    continue;
+                }
                 if (!monster.alive) {
+                    if (monster.isBoss && bossDefeated) {
+                        continue;
+                    }
                     if (now >= monster.respawnAt) {
                         monster.alive = true;
                         monster.hp = monster.maxHp;
@@ -598,8 +635,8 @@ public final class MainMidlet extends MIDlet {
                     monster.x += stepX;
                     monster.y += stepY;
                 } else if (distance <= 30 * 30 && now >= monster.nextHit) {
-                    hp -= 3 + level / 3;
-                    monster.nextHit = now + 1100;
+                    hp -= monster.isBoss ? 8 + level / 2 : 3 + level / 3;
+                    monster.nextHit = now + (monster.isBoss ? 850 : 1100);
                     if (hp <= 0) {
                         hp = MAX_HP;
                         playerX = 1200;
@@ -619,7 +656,7 @@ public final class MainMidlet extends MIDlet {
                 lastSave = now;
             }
 
-            if (totalKills >= QUEST_GOAL && isNearPortal(playerX, playerY)) {
+            if (bossDefeated && isNearPortal(playerX, playerY)) {
                 victory = true;
                 showMessage("Hoan thanh nhiem vu!");
                 save();
@@ -632,7 +669,7 @@ public final class MainMidlet extends MIDlet {
             int bestDistance = 64 * 64;
             for (int i = 0; i < monsters.length; i++) {
                 Monster monster = monsters[i];
-                if (!monster.alive) {
+                if (!monster.alive || monster.isBoss && !bossUnlocked()) {
                     continue;
                 }
                 int dx = playerX - monster.x;
@@ -663,7 +700,7 @@ public final class MainMidlet extends MIDlet {
             int radius = 112;
             for (int i = 0; i < monsters.length; i++) {
                 Monster monster = monsters[i];
-                if (!monster.alive) {
+                if (!monster.alive || monster.isBoss && !bossUnlocked()) {
                     continue;
                 }
                 int dx = playerX - monster.x;
@@ -687,6 +724,18 @@ public final class MainMidlet extends MIDlet {
                 return;
             }
             monster.alive = false;
+            if (monster.isBoss) {
+                bossDefeated = true;
+                experience += 100 + level * 10;
+                showMessage("Quan chu da bi tieu diet!");
+                while (experience >= level * 40) {
+                    experience -= level * 40;
+                    level++;
+                    hp = MAX_HP;
+                }
+                save();
+                return;
+            }
             monster.respawnAt = System.currentTimeMillis() + 9000;
             totalKills++;
             experience += 12 + level * 3;
@@ -697,8 +746,8 @@ public final class MainMidlet extends MIDlet {
                 hp = MAX_HP;
                 showMessage("Len cap! Cap " + level);
             }
-            if (totalKills >= QUEST_GOAL) {
-                showMessage("Giet het quan! Den cong ra ngoai");
+            if (totalKills == QUEST_GOAL) {
+                showMessage("Quan chu xuat hien tai cong!");
             }
             save();
         }
@@ -706,6 +755,10 @@ public final class MainMidlet extends MIDlet {
         private void showMessage(String text) {
             message = text;
             messageUntil = System.currentTimeMillis() + 1800;
+        }
+
+        private boolean bossUnlocked() {
+            return totalKills >= QUEST_GOAL && !bossDefeated;
         }
 
         protected void keyPressed(int keyCode) {
@@ -919,6 +972,9 @@ public final class MainMidlet extends MIDlet {
                     if (input.available() > 0) {
                         victory = input.readBoolean();
                     }
+                    if (input.available() > 0) {
+                        bossDefeated = input.readBoolean();
+                    }
                     if (victory) {
                         started = true;
                     }
@@ -950,6 +1006,7 @@ public final class MainMidlet extends MIDlet {
                 output.writeInt(hp);
                 output.writeInt(totalKills);
                 output.writeBoolean(victory);
+                output.writeBoolean(bossDefeated);
                 output.flush();
 
                 store = RecordStore.openRecordStore(STORE_NAME, true);
@@ -973,18 +1030,31 @@ public final class MainMidlet extends MIDlet {
     }
 
     private static final class Monster {
-        final int maxHp = 36;
+        final int maxHp;
+        final boolean isBoss;
+        final int originX;
+        final int originY;
         int x;
         int y;
-        int hp = maxHp;
+        int hp;
         long nextHit;
         long lastHitAt;
         long respawnAt;
         boolean alive = true;
 
         Monster(int x, int y) {
+            this(x, y, 36, false);
+        }
+
+        Monster(int x, int y, int maxHp, boolean isBoss) {
+            this.originX = x;
+            this.originY = y;
             this.x = x;
             this.y = y;
+            this.maxHp = maxHp;
+            this.hp = maxHp;
+            this.isBoss = isBoss;
+            this.alive = !isBoss;
         }
 
         boolean isDamaged() {
