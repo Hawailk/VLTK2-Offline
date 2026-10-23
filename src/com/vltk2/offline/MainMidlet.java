@@ -46,6 +46,8 @@ public final class MainMidlet extends MIDlet {
         private static final int QUEST_GOAL = 8;
         private static final int PORTAL_X = 2140;
         private static final int PORTAL_Y = 1560;
+        private static final int MERCHANT_X = 1180;
+        private static final int MERCHANT_Y = 850;
         private static final String[] PLAYER_SPRITE = {
             "    111   ", "   111111 ", "   122221 ", "    222   ",
             "  0000000 ", "  0033300 ", " 033343300", "03333333300",
@@ -79,6 +81,7 @@ public final class MainMidlet extends MIDlet {
         private int experience;
         private int hp = MAX_HP;
         private int potionCount = 2;
+        private int coins = 30;
         private int moveX;
         private int moveY;
         private int totalKills;
@@ -89,6 +92,7 @@ public final class MainMidlet extends MIDlet {
         private boolean started;
         private boolean victory;
         private boolean bossDefeated;
+        private boolean shopOpen;
         private volatile boolean running;
         private volatile Thread loop;
         private long lastAttack;
@@ -150,6 +154,7 @@ public final class MainMidlet extends MIDlet {
             g.fillRect(0, 0, width, height);
             drawWorld(g, cameraX, cameraY, width, height);
             drawPortal(g, cameraX, cameraY);
+            drawMerchant(g, MERCHANT_X - cameraX, MERCHANT_Y - cameraY);
 
             for (int i = 0; i < monsters.length; i++) {
                 Monster monster = monsters[i];
@@ -162,6 +167,10 @@ public final class MainMidlet extends MIDlet {
             drawSkillEffect(g, playerX - cameraX, playerY - cameraY);
             drawHud(g, width, height);
             drawMinimap(g, width);
+            if (shopOpen) {
+                drawShop(g, width, height);
+                return;
+            }
             if (victory) {
                 drawVictory(g, width, height);
                 return;
@@ -196,6 +205,8 @@ public final class MainMidlet extends MIDlet {
                          Graphics.TOP | Graphics.LEFT);
             g.drawString("- Luu tien trinh offline", 42, 156,
                          Graphics.TOP | Graphics.LEFT);
+            g.drawString("- Cham thuong nhan mua binh mau", 42, 172,
+                         Graphics.TOP | Graphics.LEFT);
 
             g.setColor(36, 67, 89);
             g.fillRect(30, height - 80, width - 60, 42);
@@ -224,6 +235,71 @@ public final class MainMidlet extends MIDlet {
                          Graphics.TOP | Graphics.HCENTER);
             g.drawString("Cham man hinh de choi lai", width / 2, y + 76,
                          Graphics.TOP | Graphics.HCENTER);
+        }
+
+        private void drawMerchant(Graphics g, int x, int y) {
+            g.setColor(28, 36, 31);
+            g.fillArc(x - 12, y + 8, 24, 7, 0, 360);
+            drawPixelSprite(g, x, y - 17, PLAYER_SPRITE, 2, 4, 0, false);
+            g.setColor(231, 195, 108);
+            g.fillRect(x + 10, y - 2, 8, 10);
+            g.setColor(79, 57, 35);
+            g.drawRect(x + 10, y - 2, 8, 10);
+            g.setColor(248, 230, 166);
+            g.drawString("SHOP", x, y - 38,
+                         Graphics.TOP | Graphics.HCENTER);
+        }
+
+        private void drawShop(Graphics g, int width, int height) {
+            int panelWidth = Math.min(width - 20, 224);
+            int panelHeight = 120;
+            int panelX = (width - panelWidth) / 2;
+            int panelY = (height - panelHeight) / 2;
+            g.setColor(17, 23, 22);
+            g.fillRect(panelX, panelY, panelWidth, panelHeight);
+            g.setColor(214, 184, 119);
+            g.drawRect(panelX, panelY, panelWidth, panelHeight);
+            g.setFont(Font.getFont(Font.FACE_SYSTEM, Font.STYLE_BOLD,
+                                   Font.SIZE_MEDIUM));
+            g.drawString("THUONG NHAN", width / 2, panelY + 10,
+                         Graphics.TOP | Graphics.HCENTER);
+            g.setFont(Font.getFont(Font.FACE_SYSTEM, Font.STYLE_PLAIN,
+                                   Font.SIZE_SMALL));
+            g.setColor(239, 224, 185);
+            g.drawString("Xu: " + coins + "   Binh mau: " + potionCount,
+                         width / 2, panelY + 35,
+                         Graphics.TOP | Graphics.HCENTER);
+            g.setColor(64, 103, 73);
+            g.fillRect(panelX + 10, panelY + 57, panelWidth - 20, 32);
+            g.setColor(194, 224, 166);
+            g.drawRect(panelX + 10, panelY + 57, panelWidth - 20, 32);
+            g.drawString("MUA BINH MAU - 15 XU", width / 2, panelY + 66,
+                         Graphics.TOP | Graphics.HCENTER);
+            g.setColor(180, 169, 143);
+            g.drawString("Cham ben ngoai de dong",
+                         width / 2, panelY + 96,
+                         Graphics.TOP | Graphics.HCENTER);
+        }
+
+        private void handleShopTap(int x, int y) {
+            int panelWidth = Math.min(getWidth() - 20, 224);
+            int panelX = (getWidth() - panelWidth) / 2;
+            int panelY = (getHeight() - 120) / 2;
+            if (x >= panelX + 10 && x <= panelX + panelWidth - 10
+                    && y >= panelY + 57 && y <= panelY + 89) {
+                if (potionCount >= 9) {
+                    showMessage("Tui binh da day");
+                } else if (coins < 15) {
+                    showMessage("Can 15 xu de mua binh");
+                } else {
+                    coins -= 15;
+                    potionCount++;
+                    showMessage("Da mua 1 binh hoi mau");
+                    save();
+                }
+            } else {
+                shopOpen = false;
+            }
         }
 
         private void startNextRun() {
@@ -415,7 +491,8 @@ public final class MainMidlet extends MIDlet {
             g.setColor(245, 225, 177);
             g.drawString("VO LAM 2  |  Cap " + level, 11, 8,
                          Graphics.TOP | Graphics.LEFT);
-            g.drawString("Nhiem vu: " + totalKills + "/" + QUEST_GOAL,
+                    g.drawString("Q " + totalKills + "/" + QUEST_GOAL
+                        + "  Xu " + coins,
                          11, 22, Graphics.TOP | Graphics.LEFT);
             g.setColor(95, 36, 34);
             g.fillRect(11, 38, panelWidth - 22, 7);
@@ -487,6 +564,11 @@ public final class MainMidlet extends MIDlet {
             int portalX = mapX + PORTAL_X * inner / WORLD_WIDTH;
             int portalY = mapY + PORTAL_Y * inner / WORLD_HEIGHT;
             g.fillRect(portalX - 2, portalY - 2, 5, 5);
+
+            g.setColor(238, 192, 83);
+            int merchantX = mapX + MERCHANT_X * inner / WORLD_WIDTH;
+            int merchantY = mapY + MERCHANT_Y * inner / WORLD_HEIGHT;
+            g.fillRect(merchantX - 1, merchantY - 1, 3, 3);
 
             g.setColor(211, 72, 53);
             int index;
@@ -607,7 +689,7 @@ public final class MainMidlet extends MIDlet {
         }
 
         private void updateGame() {
-            if (!started || victory) {
+            if (!started || victory || shopOpen) {
                 return;
             }
             long now = System.currentTimeMillis();
@@ -750,8 +832,9 @@ public final class MainMidlet extends MIDlet {
             if (monster.isBoss) {
                 bossDefeated = true;
                 experience += 100 + level * 10;
+                coins = Math.min(999999, coins + 50);
                 potionCount = Math.min(9, potionCount + 2);
-                showMessage("Quan chu da bi tieu diet!");
+                showMessage("Ha quan chu! +50 xu");
                 while (experience >= level * 40) {
                     experience -= level * 40;
                     level++;
@@ -763,11 +846,13 @@ public final class MainMidlet extends MIDlet {
             monster.respawnAt = System.currentTimeMillis() + 9000;
             totalKills++;
             experience += 12 + level * 3;
+            int coinDrop = 3 + level;
+            coins = Math.min(999999, coins + coinDrop);
             if (totalKills % 3 == 0 && potionCount < 9) {
                 potionCount++;
                 showMessage("Nhan duoc binh hoi mau");
             }
-            showMessage("Ha quai vat! " + totalKills + "/" + QUEST_GOAL);
+            showMessage("Ha quai vat! +" + coinDrop + " xu");
             while (experience >= level * 40) {
                 experience -= level * 40;
                 level++;
@@ -806,6 +891,10 @@ public final class MainMidlet extends MIDlet {
         }
 
         protected void keyPressed(int keyCode) {
+            if (shopOpen) {
+                shopOpen = false;
+                return;
+            }
             if (victory) {
                 startNextRun();
                 return;
@@ -843,6 +932,10 @@ public final class MainMidlet extends MIDlet {
         }
 
         protected void pointerPressed(int x, int y) {
+            if (shopOpen) {
+                handleShopTap(x, y);
+                return;
+            }
             if (victory) {
                 startNextRun();
                 return;
@@ -852,11 +945,21 @@ public final class MainMidlet extends MIDlet {
                 showMessage("Bat dau chien dau");
                 return;
             }
+            if (nearMerchantAtScreenPoint(x, y)) {
+                shopOpen = true;
+                moveX = 0;
+                moveY = 0;
+                attackHeld = false;
+                showMessage("Thuong nhan ban binh mau");
+                return;
+            }
             updatePointer(x, y, true);
         }
 
         protected void pointerDragged(int x, int y) {
-            updatePointer(x, y, false);
+            if (!shopOpen) {
+                updatePointer(x, y, false);
+            }
         }
 
         protected void pointerReleased(int x, int y) {
@@ -914,6 +1017,21 @@ public final class MainMidlet extends MIDlet {
             int dx = x - PORTAL_X;
             int dy = y - PORTAL_Y;
             return dx * dx + dy * dy < 30 * 30;
+        }
+
+        private boolean nearMerchantAtScreenPoint(int screenX, int screenY) {
+            int cameraX = clamp(playerX - getWidth() / 2,
+                                0, WORLD_WIDTH - getWidth());
+            int cameraY = clamp(playerY - getHeight() / 2,
+                                0, WORLD_HEIGHT - getHeight());
+            int worldX = screenX + cameraX;
+            int worldY = screenY + cameraY;
+            int dx = worldX - MERCHANT_X;
+            int dy = worldY - MERCHANT_Y;
+            int playerDx = playerX - MERCHANT_X;
+            int playerDy = playerY - MERCHANT_Y;
+            return dx * dx + dy * dy <= 38 * 38
+                    && playerDx * playerDx + playerDy * playerDy <= 64 * 64;
         }
 
         private boolean inLake(int x, int y, int centerX, int centerY,
@@ -1033,6 +1151,9 @@ public final class MainMidlet extends MIDlet {
                     if (input.available() >= 4) {
                         potionCount = clamp(input.readInt(), 0, 9);
                     }
+                    if (input.available() >= 4) {
+                        coins = clamp(input.readInt(), 0, 999999);
+                    }
                     if (victory) {
                         started = true;
                     }
@@ -1066,6 +1187,7 @@ public final class MainMidlet extends MIDlet {
                 output.writeBoolean(victory);
                 output.writeBoolean(bossDefeated);
                 output.writeInt(potionCount);
+                output.writeInt(coins);
                 output.flush();
 
                 store = RecordStore.openRecordStore(STORE_NAME, true);

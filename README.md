@@ -23,6 +23,7 @@ Build tạo `dist/VLTK2Offline.jar` cùng `dist/VLTK2Offline.jad`. JAR game ch�
 - D-pad cảm ứng hoặc phím điều hướng để di chuyển; nút kiếm hoặc phím chọn để đánh quái ở gần.
 - Nút `SKL` tung kỹ năng diện rộng quanh nhân vật, gây sát thương mạnh và hồi chiêu 4,2 giây.
 - Nút bình ở giữa D-pad dùng vật phẩm hồi tối đa 45 HP; bắt đầu với 2 bình, nhận thêm mỗi 3 quái và khi hạ thủ lĩnh. Số bình được lưu offline.
+- Quái thường rơi xu theo cấp, thủ lĩnh thưởng 50 xu; chạm thương nhân cạnh điểm xuất phát để mua bình hồi máu giá 15 xu. Xu và túi bình được lưu offline.
 - Quái đuổi theo và gây sát thương. Hạ quái nhận EXP; đủ EXP sẽ lên cấp và hồi sinh lực.
 - Nhiệm vụ yêu cầu hạ 8 quái thường, đánh bại thủ lĩnh có thanh máu riêng ở cổng phía đông nam, rồi quay lại cổng để hoàn tất; sprite có nhịp bước, hiệu ứng chém và chớp khi trúng đòn.
 - Bản đồ mini ở góc trên phải đánh dấu vị trí nhân vật, quái, hồ và cổng thoát để dễ tìm đường.
