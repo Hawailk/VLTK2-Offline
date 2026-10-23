@@ -78,12 +78,14 @@ public final class MainMidlet extends MIDlet {
         private int level = 1;
         private int experience;
         private int hp = MAX_HP;
+        private int potionCount = 2;
         private int moveX;
         private int moveY;
         private int totalKills;
         private int facing = 1;
         private boolean attackHeld;
         private boolean skillRequested;
+        private boolean potionRequested;
         private boolean started;
         private boolean victory;
         private boolean bossDefeated;
@@ -528,6 +530,7 @@ public final class MainMidlet extends MIDlet {
             drawButton(g, 111, bottom - 38, ">");
             drawButton(g, 73, bottom - 76, "^");
             drawButton(g, 73, bottom, "v");
+            drawPotionButton(g, 73, bottom - 38);
 
             int attackX = width - 49;
             int attackY = height - 52;
@@ -576,6 +579,22 @@ public final class MainMidlet extends MIDlet {
                       diameter - 8, diameter - 8, 0, 360);
         }
 
+        private void drawPotionButton(Graphics g, int x, int y) {
+            g.setColor(41, 69, 49);
+            g.fillArc(x - 13, y - 13, 26, 26, 0, 360);
+            g.setColor(169, 203, 136);
+            g.drawArc(x - 13, y - 13, 26, 26, 0, 360);
+            g.setColor(222, 83, 72);
+            g.fillRect(x - 4, y - 4, 8, 10);
+            g.setColor(245, 220, 156);
+            g.fillRect(x - 2, y - 8, 4, 4);
+            g.setColor(242, 232, 197);
+            g.setFont(Font.getFont(Font.FACE_SYSTEM, Font.STYLE_BOLD,
+                                   Font.SIZE_SMALL));
+            g.drawString("" + potionCount, x, y + 6,
+                         Graphics.TOP | Graphics.HCENTER);
+        }
+
         private void drawButton(Graphics g, int x, int y, String label) {
             g.setColor(31, 40, 36);
             g.fillArc(x - 17, y - 17, 34, 34, 0, 360);
@@ -608,6 +627,10 @@ public final class MainMidlet extends MIDlet {
             if (skillRequested) {
                 skillRequested = false;
                 useSkill(now);
+            }
+            if (potionRequested) {
+                potionRequested = false;
+                usePotion();
             }
 
             for (int i = 0; i < monsters.length; i++) {
@@ -727,6 +750,7 @@ public final class MainMidlet extends MIDlet {
             if (monster.isBoss) {
                 bossDefeated = true;
                 experience += 100 + level * 10;
+                potionCount = Math.min(9, potionCount + 2);
                 showMessage("Quan chu da bi tieu diet!");
                 while (experience >= level * 40) {
                     experience -= level * 40;
@@ -739,6 +763,10 @@ public final class MainMidlet extends MIDlet {
             monster.respawnAt = System.currentTimeMillis() + 9000;
             totalKills++;
             experience += 12 + level * 3;
+            if (totalKills % 3 == 0 && potionCount < 9) {
+                potionCount++;
+                showMessage("Nhan duoc binh hoi mau");
+            }
             showMessage("Ha quai vat! " + totalKills + "/" + QUEST_GOAL);
             while (experience >= level * 40) {
                 experience -= level * 40;
@@ -755,6 +783,22 @@ public final class MainMidlet extends MIDlet {
         private void showMessage(String text) {
             message = text;
             messageUntil = System.currentTimeMillis() + 1800;
+        }
+
+        private void usePotion() {
+            if (potionCount <= 0) {
+                showMessage("Da het binh hoi mau");
+                return;
+            }
+            if (hp >= MAX_HP) {
+                showMessage("Sinh luc dang day");
+                return;
+            }
+            int oldHp = hp;
+            hp = Math.min(MAX_HP, hp + 45);
+            potionCount--;
+            showMessage("Hoi phuc " + (hp - oldHp) + " sinh luc");
+            save();
         }
 
         private boolean bossUnlocked() {
@@ -825,6 +869,17 @@ public final class MainMidlet extends MIDlet {
             int bottom = getHeight() - 15;
             moveX = 0;
             moveY = 0;
+            if (allowSkill) {
+                potionRequested = false;
+                int potionDx = x - 73;
+                int potionDy = y - (bottom - 38);
+                if (potionDx * potionDx + potionDy * potionDy <= 17 * 17) {
+                    potionRequested = true;
+                    attackHeld = false;
+                    skillRequested = false;
+                    return;
+                }
+            }
             if (x < 70 && y > bottom - 58 && y < bottom - 18) {
                 moveX = -1;
             } else if (x > 92 && x < 148 && y > bottom - 58
@@ -975,6 +1030,9 @@ public final class MainMidlet extends MIDlet {
                     if (input.available() > 0) {
                         bossDefeated = input.readBoolean();
                     }
+                    if (input.available() >= 4) {
+                        potionCount = clamp(input.readInt(), 0, 9);
+                    }
                     if (victory) {
                         started = true;
                     }
@@ -1007,6 +1065,7 @@ public final class MainMidlet extends MIDlet {
                 output.writeInt(totalKills);
                 output.writeBoolean(victory);
                 output.writeBoolean(bossDefeated);
+                output.writeInt(potionCount);
                 output.flush();
 
                 store = RecordStore.openRecordStore(STORE_NAME, true);
