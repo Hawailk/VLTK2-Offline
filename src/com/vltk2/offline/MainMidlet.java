@@ -41,6 +41,7 @@ public final class MainMidlet extends MIDlet {
         private static final int WORLD_WIDTH = 2400;
         private static final int WORLD_HEIGHT = 1800;
         private static final int MAX_HP = 100;
+        private static final int SKILL_COOLDOWN = 4200;
         private static final String STORE_NAME = "VLTK2Save";
         private static final int QUEST_GOAL = 8;
         private static final int PORTAL_X = 2140;
@@ -81,12 +82,15 @@ public final class MainMidlet extends MIDlet {
         private int totalKills;
         private int facing = 1;
         private boolean attackHeld;
+        private boolean skillRequested;
         private boolean started;
         private boolean victory;
         private volatile boolean running;
         private volatile Thread loop;
         private long lastAttack;
         private long swingUntil;
+        private long skillReadyAt;
+        private long skillStartedAt;
         private long lastSave;
         private long messageUntil;
         private String message = "Chao mung hiep khach";
@@ -151,6 +155,7 @@ public final class MainMidlet extends MIDlet {
                 }
             }
             drawPlayer(g, playerX - cameraX, playerY - cameraY);
+            drawSkillEffect(g, playerX - cameraX, playerY - cameraY);
             drawHud(g, width, height);
             drawMinimap(g, width);
             if (victory) {
@@ -504,6 +509,40 @@ public final class MainMidlet extends MIDlet {
                                    Font.SIZE_SMALL));
             g.drawString("ATK", attackX, attackY - 5,
                          Graphics.TOP | Graphics.HCENTER);
+
+            int skillX = width - 49;
+            int skillY = height - 124;
+            long now = System.currentTimeMillis();
+            boolean ready = now >= skillReadyAt;
+            g.setColor(ready ? 45 : 46, ready ? 103 : 57, ready ? 119 : 68);
+            g.fillArc(skillX - 23, skillY - 23, 46, 46, 0, 360);
+            g.setColor(ready ? 184 : 106, ready ? 220 : 129,
+                       ready ? 224 : 139);
+            g.drawArc(skillX - 23, skillY - 23, 46, 46, 0, 360);
+            g.setColor(238, 242, 221);
+            g.setFont(Font.getFont(Font.FACE_SYSTEM, Font.STYLE_BOLD,
+                                   Font.SIZE_SMALL));
+            g.drawString("SKL", skillX, skillY - 7,
+                         Graphics.TOP | Graphics.HCENTER);
+            if (!ready) {
+                int seconds = (int) ((skillReadyAt - now + 999) / 1000);
+                g.drawString("" + seconds, skillX, skillY + 6,
+                             Graphics.TOP | Graphics.HCENTER);
+            }
+        }
+
+        private void drawSkillEffect(Graphics g, int x, int y) {
+            long elapsed = System.currentTimeMillis() - skillStartedAt;
+            if (skillStartedAt == 0 || elapsed < 0 || elapsed >= 420) {
+                return;
+            }
+            int diameter = 44 + (int) (elapsed * 150 / 420);
+            g.setColor(90, 218, 233);
+            g.drawArc(x - diameter / 2, y - diameter / 2,
+                      diameter, diameter, 0, 360);
+            g.setColor(237, 248, 208);
+            g.drawArc(x - diameter / 2 + 4, y - diameter / 2 + 4,
+                      diameter - 8, diameter - 8, 0, 360);
         }
 
         private void drawButton(Graphics g, int x, int y, String label) {
@@ -533,6 +572,11 @@ public final class MainMidlet extends MIDlet {
 
             if (moveX != 0 || moveY != 0) {
                 facing = moveX < 0 ? -1 : 1;
+            }
+
+            if (skillRequested) {
+                skillRequested = false;
+                useSkill(now);
             }
 
             for (int i = 0; i < monsters.length; i++) {
@@ -604,27 +648,59 @@ public final class MainMidlet extends MIDlet {
                 return;
             }
 
-            target.lastHitAt = System.currentTimeMillis();
-            target.hp -= 9 + level * 2;
-            if (target.hp <= 0) {
-                target.alive = false;
-                target.respawnAt = System.currentTimeMillis() + 9000;
-                totalKills++;
-                experience += 12 + level * 3;
-                showMessage("Ha quai vat! " + totalKills + "/" + QUEST_GOAL);
-                while (experience >= level * 40) {
-                    experience -= level * 40;
-                    level++;
-                    hp = MAX_HP;
-                    showMessage("Len cap! Cap " + level);
-                }
-                if (totalKills >= QUEST_GOAL) {
-                    showMessage("Giet het quan! Den cong ra ngoai");
-                }
-                save();
-            } else {
-                showMessage("Trung don!");
+            damageMonster(target, 9 + level * 2);
+        }
+
+        private void useSkill(long now) {
+            if (now < skillReadyAt) {
+                showMessage("Ky nang hoi trong "
+                        + ((skillReadyAt - now + 999) / 1000) + " giay");
+                return;
             }
+            skillReadyAt = now + SKILL_COOLDOWN;
+            skillStartedAt = now;
+            int hitCount = 0;
+            int radius = 112;
+            for (int i = 0; i < monsters.length; i++) {
+                Monster monster = monsters[i];
+                if (!monster.alive) {
+                    continue;
+                }
+                int dx = playerX - monster.x;
+                int dy = playerY - monster.y;
+                if (dx * dx + dy * dy <= radius * radius) {
+                    damageMonster(monster, 24 + level * 4);
+                    hitCount++;
+                }
+            }
+            if (hitCount == 0) {
+                showMessage("Khong co quai trong tam ky nang");
+            } else {
+                showMessage("Ky nang trung " + hitCount + " muc tieu");
+            }
+        }
+
+        private void damageMonster(Monster monster, int damage) {
+            monster.lastHitAt = System.currentTimeMillis();
+            monster.hp -= damage;
+            if (monster.hp > 0) {
+                return;
+            }
+            monster.alive = false;
+            monster.respawnAt = System.currentTimeMillis() + 9000;
+            totalKills++;
+            experience += 12 + level * 3;
+            showMessage("Ha quai vat! " + totalKills + "/" + QUEST_GOAL);
+            while (experience >= level * 40) {
+                experience -= level * 40;
+                level++;
+                hp = MAX_HP;
+                showMessage("Len cap! Cap " + level);
+            }
+            if (totalKills >= QUEST_GOAL) {
+                showMessage("Giet het quan! Den cong ra ngoai");
+            }
+            save();
         }
 
         private void showMessage(String text) {
@@ -679,11 +755,11 @@ public final class MainMidlet extends MIDlet {
                 showMessage("Bat dau chien dau");
                 return;
             }
-            updatePointer(x, y);
+            updatePointer(x, y, true);
         }
 
         protected void pointerDragged(int x, int y) {
-            updatePointer(x, y);
+            updatePointer(x, y, false);
         }
 
         protected void pointerReleased(int x, int y) {
@@ -692,7 +768,7 @@ public final class MainMidlet extends MIDlet {
             attackHeld = false;
         }
 
-        private void updatePointer(int x, int y) {
+        private void updatePointer(int x, int y, boolean allowSkill) {
             int bottom = getHeight() - 15;
             moveX = 0;
             moveY = 0;
@@ -711,6 +787,11 @@ public final class MainMidlet extends MIDlet {
             int dx = x - (getWidth() - 49);
             int dy = y - (getHeight() - 52);
             attackHeld = dx * dx + dy * dy <= 38 * 38;
+            if (allowSkill) {
+                int skillY = getHeight() - 124;
+                int skillDy = y - skillY;
+                skillRequested = dx * dx + skillDy * skillDy <= 27 * 27;
+            }
         }
 
         private boolean isBlocked(int x, int y) {
